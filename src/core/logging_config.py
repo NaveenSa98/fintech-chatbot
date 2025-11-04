@@ -42,6 +42,14 @@ def setup_logging():
     db_logger = logging.getLogger("database")
     db_logger.setLevel(logging.INFO)
 
+    # Document processing loggers
+    documents_logger = logging.getLogger("documents")
+    documents_logger.setLevel(logging.INFO)
+
+    # Vector store loggers
+    vector_store_logger = logging.getLogger("vector_store")
+    vector_store_logger.setLevel(logging.INFO)
+
     return logging.getLogger(__name__)
 
 def get_logger(name: str) -> logging.Logger:

@@ -23,6 +23,27 @@ pydantic==2.5.3
 pydantic-settings==2.1.0
 email-validator==2.1.0
 
+# LangChain & RAG
+langchain==0.1.0
+langchain-community==0.0.13
+langchain-openai==0.0.2
+
+# Vector Database
+chromadb==0.4.22
+
+# Document Processing
+pypdf==3.17.4
+python-docx==1.1.0
+openpyxl==3.1.2
+pandas==2.1.4
+
+# Embeddings
+sentence-transformers==2.3.1
+openai==1.7.2
+
+# Utilities
+tiktoken==0.5.2
+
 # Testing (Optional for now)
 pytest==7.4.4
 httpx==0.26.0
