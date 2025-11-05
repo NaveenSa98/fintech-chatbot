@@ -4,7 +4,8 @@ Loads environment variables and provides centralized config.
 """
 
 from pydantic_settings import BaseSettings
-from typing import Optional
+from pydantic import field_validator
+from typing import Optional, Union
 import os
 
 class Settings(BaseSettings):
@@ -36,12 +37,22 @@ class Settings(BaseSettings):
 
     #Vector Store
     CHROMA_DB_DIR: str = "data/chroma_db"
-    EMBEDDING_MODEL_NAME: str = "sentence-transformers/all-mpnet-base-v2"
-    CHUNK_SIZE: int = 512
+    EMBEDDING_MODEL_NAME: str = "BAAI/bge-base-en-v1.5"
+    CHUNK_SIZE: int = 500
     CHUNK_OVERLAP: int = 50
 
-    # OpenAI (Optional)
-    OPENAI_API_KEY: Optional[str] = None
+    #LLM Configuration
+    GROQ_API_KEY: Optional[str] = None
+    LLM_MODEL: str = "mixtral-8x7b-32768"  # Default to Mixtral
+    LLM_TEMPERATURE: float = 0.3
+    LLM_MAX_TOKENS: int = 1024
+
+     # RAG Configuration - Phase 3
+    RAG_TOP_K: int = 5
+    RAG_SIMILARITY_THRESHOLD: float = 0.7
+    ENABLE_CONVERSATION_HISTORY: bool = True
+    MAX_CONVERSATION_HISTORY: int = 10
+    
 
     model_config = {
         "env_file": ".env",
@@ -97,7 +108,7 @@ VALID_ROLES = list(ROLE_PERMISSIONS.keys())
 DEPARTMENT_COLLECTIONS = {
     "Finance": "finance",
     "Marketing": "marketing",
-    "HR": "hr",
+    "HR": "hr_dept",
     "Engineering": "engineering",
     "General": "general"
 }

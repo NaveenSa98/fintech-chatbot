@@ -50,6 +50,18 @@ def setup_logging():
     vector_store_logger = logging.getLogger("vector_store")
     vector_store_logger.setLevel(logging.INFO)
 
+    # Chat & RAG loggers
+    chat_logger = logging.getLogger("chat")
+    chat_logger.setLevel(logging.INFO)
+
+    # LLM loggers
+    llm_logger = logging.getLogger("llm")
+    llm_logger.setLevel(logging.INFO)
+
+    # RAG loggers
+    rag_logger = logging.getLogger("rag")
+    rag_logger.setLevel(logging.INFO)
+
     return logging.getLogger(__name__)
 
 def get_logger(name: str) -> logging.Logger:
