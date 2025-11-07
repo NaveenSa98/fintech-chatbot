@@ -43,13 +43,13 @@ class Settings(BaseSettings):
 
     #LLM Configuration
     GROQ_API_KEY: Optional[str] = None
-    LLM_MODEL: str = "mixtral-8x7b-32768"  # Default to Mixtral
+    LLM_MODEL: str = "llama-3.1-8b-instant"  
     LLM_TEMPERATURE: float = 0.3
     LLM_MAX_TOKENS: int = 1024
 
-     # RAG Configuration - Phase 3
+     # RAG Configuration 
     RAG_TOP_K: int = 5
-    RAG_SIMILARITY_THRESHOLD: float = 0.7
+    RAG_SIMILARITY_THRESHOLD: float = 0.6  
     ENABLE_CONVERSATION_HISTORY: bool = True
     MAX_CONVERSATION_HISTORY: int = 10
     

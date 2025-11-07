@@ -50,9 +50,11 @@ class LLMManager:
                 temperature=settings.LLM_TEMPERATURE,
                 max_tokens=settings.LLM_MAX_TOKENS,
                 groq_api_key=settings.GROQ_API_KEY,
-                # Additional parameters for better performance
-                top_p=0.9,  # Nucleus sampling
                 timeout=30.0,  # Timeout in seconds
+                # Additional parameters passed via model_kwargs
+                model_kwargs={
+                    "top_p": 0.9,  # Nucleus sampling
+                }
             )
             
             logger.info("✅ LLM initialized successfully!")
@@ -152,9 +154,8 @@ class LLMManager:
         
         # Get model's context limit
         model_limits = {
-            "mixtral-8x7b-32768": 32000,
-            "llama3-70b-8192": 8000,
-            "llama3-8b-8192": 8000,
+            "llama-3.1-8b-instant": 8000
+    
         }
         
         limit = model_limits.get(settings.LLM_MODEL, 8000)

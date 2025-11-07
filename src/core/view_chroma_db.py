@@ -97,6 +97,9 @@ class ChromaDBViewer:
                 console.print(f"[cyan]Metadata:[/cyan] {json.dumps(metadata, indent=2)}")
                 console.print("-" * 80)
 
+        except ValueError as e:
+            console.print(f"[red]Error: Collection '{collection_name}' does not exist.[/red]")
+            console.print("[yellow]Tip: Use option 1 or 2 to see available collections.[/yellow]")
         except Exception as e:
             console.print(f"[red]Error viewing collection: {str(e)}[/red]")
 
@@ -138,6 +141,9 @@ class ChromaDBViewer:
                 console.print(f"[cyan]Metadata:[/cyan] {json.dumps(metadata, indent=2)}")
                 console.print("-" * 80)
 
+        except ValueError as e:
+            console.print(f"[red]Error: Collection '{collection_name}' does not exist.[/red]")
+            console.print("[yellow]Tip: Use option 1 or 2 to see available collections.[/yellow]")
         except Exception as e:
             console.print(f"[red]Error searching collection: {str(e)}[/red]")
 
@@ -182,14 +188,14 @@ def main():
             viewer.get_collection_stats()
 
         elif choice == "3":
-            collection_name = console.input("[yellow]Enter collection name:[/yellow] ")
-            limit = console.input("[yellow]Number of documents to view (default 5):[/yellow] ") or "5"
+            collection_name = console.input("[yellow]Enter collection name:[/yellow] ").strip()
+            limit = console.input("[yellow]Number of documents to view (default 5):[/yellow] ").strip() or "5"
             viewer.view_collection_details(collection_name, int(limit))
 
         elif choice == "4":
-            collection_name = console.input("[yellow]Enter collection name:[/yellow] ")
-            query = console.input("[yellow]Enter search query:[/yellow] ")
-            n_results = console.input("[yellow]Number of results (default 3):[/yellow] ") or "3"
+            collection_name = console.input("[yellow]Enter collection name:[/yellow] ").strip()
+            query = console.input("[yellow]Enter search query:[/yellow] ").strip()
+            n_results = console.input("[yellow]Number of results (default 3):[/yellow] ").strip() or "3"
             viewer.search_in_collection(collection_name, query, int(n_results))
 
         elif choice == "5":

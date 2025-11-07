@@ -177,23 +177,25 @@ class RAGChain:
     ) -> bool:
         """
         Check if retrieved documents are relevant enough.
-        
+
         Args:
             documents: Retrieved documents
             min_score: Minimum relevance score (default from settings)
-            
+
         Returns:
             True if documents are relevant
         """
         if not documents:
             return False
-        
+
         min_score = min_score or settings.RAG_SIMILARITY_THRESHOLD
-        
+
         # Check if best match exceeds threshold
-        # Note: ChromaDB returns distance, lower is better
-        best_score = 1 - documents[0].get("score", 1.0)  # Convert to similarity
-        
+        # Note: With Cosine similarity, scores range from 0-1 (higher is better)
+        # ChromaDB with cosine returns 1 - cosine_similarity as distance
+        # So we convert: similarity = 1 - distance
+        best_score = 1 - documents[0].get("score", 1.0)  # Convert distance to similarity
+
         return best_score >= min_score
     
     def _generate_response(

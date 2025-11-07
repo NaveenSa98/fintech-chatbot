@@ -41,6 +41,20 @@ class ChromaStore:
 
         collection_name = DEPARTMENT_COLLECTIONS.get(department, "general")
 
+        # Get or create collection with Cosine similarity metric
+        try:
+            collection = self.client.get_collection(
+                name=collection_name,
+            )
+            logger.info(f"Retrieved existing collection: {collection_name}")
+        except Exception:
+            # Create new collection with Cosine similarity
+            collection = self.client.create_collection(
+                name=collection_name,
+                metadata={"hnsw:space": "cosine"}  # Use Cosine similarity for semantic search
+            )
+            logger.info(f"Created new collection: {collection_name} with Cosine similarity")
+
         vectorstore = Chroma(
             collection_name = collection_name,
             embedding_function = self.embedding_function,
