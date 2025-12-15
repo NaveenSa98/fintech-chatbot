@@ -98,6 +98,41 @@ class DocumentService:
         # Save file
         file_path = processor.save_uploaded_file(file_content, unique_filename)
 
+        # Convert PDF or DOCX to Markdown if applicable
+        converted_file_path = file_path
+        source_file_type = file_extension
+        converted_from = None
+
+        if file_extension.lower() in ["pdf", "docx"]:
+            from src.documents.converters import get_document_converter
+
+
+            if (file_extension.lower() == "pdf" and settings.CONVERT_PDF_TO_MARKDOWN) or \
+               (file_extension.lower() == "docx" and settings.CONVERT_DOCX_TO_MARKDOWN):
+
+                logger.info(f"{file_extension.upper()} detected, converting to Markdown: {file.filename}")
+
+                # Generate markdown filename
+                md_filename = f"{unique_filename.rsplit('.', 1)[0]}.md"
+                md_path = os.path.join(settings.UPLOAD_DIR, md_filename)
+
+                # Convert to markdown
+                converter = get_document_converter()
+                success, error, file_to_process = converter.convert_with_fallback(
+                    file_path=file_path,
+                    file_type=file_extension,
+                    output_path=md_path
+                )
+
+                if success:
+                    logger.info(f"Successfully converted {file_extension.upper()} to Markdown: {md_filename}")
+                    converted_file_path = file_to_process
+                    file_extension = "md"  # Update to markdown for processing
+                    converted_from = source_file_type
+                else:
+                    logger.warning(f"{file_extension.upper()} conversion failed, using original file: {error}")
+                    # Continue with original file
+
         # Create database record
         try:
             doc_record = DocumentModel(
@@ -105,6 +140,8 @@ class DocumentService:
                 original_filename=file.filename,
                 file_size=file_size,
                 file_type=file_extension,
+                source_file_type=source_file_type,
+                converted_from=converted_from,
                 department=department,
                 uploaded_by=user_id,
                 description=description,
@@ -136,9 +173,9 @@ class DocumentService:
                 "upload_date": str(doc_record.uploaded_at)
             }
 
-            # Process file
+            # Process file (use converted file path if available)
             chunks = processor.process_file(
-                file_path=file_path,
+                file_path=converted_file_path,
                 file_type=file_extension,
                 metadata=metadata
             )

@@ -17,6 +17,7 @@ from src.chat.prompt_templates import (
     get_standalone_question_prompt,
     format_no_context_response
 )
+from src.chat.query_augmentation import get_query_augmentation_engine
 from src.vectorstore.retriever import get_retriever
 from src.utils.formatting import (
     format_context,
@@ -43,6 +44,7 @@ class RAGChain:
         self.retriever = get_retriever()
         self.rag_prompt = get_rag_prompt()
         self.standalone_prompt = get_standalone_question_prompt()
+        self.augmentation_engine = get_query_augmentation_engine()
 
     def process_query(
         self,
@@ -53,49 +55,57 @@ class RAGChain:
     ) -> Dict[str, Any]:
         """
         Process a user query through the RAG pipeline.
-        
+
         Args:
             question: User's question
             user_role: User's role (for access control)
             chat_history: Optional conversation history
             top_k: Number of documents to retrieve (default from settings)
-            
+
         Returns:
             Dictionary with response, sources, and metadata
         """
         # Step 0: Input validation and sanitization
         question = sanitize_input(question)
         top_k = top_k or settings.RAG_TOP_K
-        
+
         logger.info(f"🔍 Processing query from {user_role}: {question[:50]}...")
-        
+
         # Step 1: Contextualize question with history (if available)
         standalone_question = self._contextualize_question(question, chat_history)
-        
-        # Step 2: Retrieve relevant documents
-        retrieved_docs = self._retrieve_documents(standalone_question, user_role, top_k)
-        
-        # Step 3: Check if we have relevant context
+
+        # Step 2: Augment query for better retrieval (NEW)
+        augmented_queries = self._augment_query(standalone_question, user_role)
+
+        # Step 3: Retrieve relevant documents (MODIFIED - now uses augmented queries)
+        retrieved_docs = self._retrieve_documents(
+            standalone_question,
+            user_role,
+            top_k,
+            augmented_queries
+        )
+
+        # Step 4: Check if we have relevant context
         if not retrieved_docs or not self._has_relevant_context(retrieved_docs):
             return self._handle_no_context(question, user_role)
-        
-        # Step 4: Format context and build prompt
+
+        # Step 5: Format context and build prompt
         context = format_context(retrieved_docs)
         history = format_chat_history(chat_history) if chat_history else "No previous conversation"
-        
-        # Step 5: Generate response
+
+        # Step 6: Generate response
         response = self._generate_response(
             question=question,
             context=context,
             user_role=user_role,
             chat_history=history
         )
-        
-        # Step 6: Post-process and package results
+
+        # Step 7: Post-process and package results
         result = self._package_response(response, retrieved_docs, question)
-        
+
         logger.info("✅ Query processed successfully")
-        
+
         return result
     
     def _contextualize_question(
@@ -106,52 +116,87 @@ class RAGChain:
         """
         Contextualize question with chat history if available.
         Converts follow-up questions to standalone questions.
-        
+
         Args:
             question: Current question
             chat_history: Chat history
-            
+
         Returns:
             Standalone question
         """
         if not chat_history or not settings.ENABLE_CONVERSATION_HISTORY:
             return question
-        
+
         try:
             # Format history
             history_text = format_chat_history(chat_history[-3:])  # Last 3 messages
-            
+
             # Build prompt
             prompt = self.standalone_prompt.format(
                 chat_history=history_text,
                 question=question
             )
-            
+
             # Generate standalone question
             standalone = self.llm_manager.generate_response(prompt)
-            
+
             logger.info(f"📝 Contextualized question: {standalone[:50]}...")
-            
+
             return standalone.strip()
-            
+
         except Exception as e:
             logger.warning(f"⚠️ Failed to contextualize question: {e}")
             return question  # Fallback to original question
+
+    def _augment_query(
+        self,
+        question: str,
+        user_role: str
+    ) -> List[str]:
+        """
+        Generate augmented query variations for better retrieval.
+
+        Args:
+            question: User's question
+            user_role: User's role
+
+        Returns:
+            List of augmented queries (empty list if augmentation disabled)
+        """
+        try:
+            augmentation_result = self.augmentation_engine.augment(question, user_role)
+            augmented = augmentation_result.get("augmented", [])
+
+            if augmented:
+                logger.info(f"✨ Generated {len(augmented)} augmented queries")
+                for q in augmented:
+                    logger.debug(f"  - {q}")
+
+            return augmented
+
+        except Exception as e:
+            logger.warning(f"⚠️ Query augmentation failed: {e}")
+            return []
     
     def _retrieve_documents(
         self,
         question: str,
         user_role: str,
-        top_k: int
+        top_k: int,
+        augmented_queries: List[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Retrieve relevant documents based on user role.
-        
+
+        Searches using both the original question and augmented queries
+        for improved retrieval coverage.
+
         Args:
             question: User's question
             user_role: User's role
             top_k: Number of documents to retrieve
-            
+            augmented_queries: Optional list of augmented query variations
+
         Returns:
             List of retrieved documents
         """
@@ -159,13 +204,14 @@ class RAGChain:
             documents = self.retriever.retrieve_for_user(
                 query=question,
                 user_role=user_role,
-                top_k=top_k
+                top_k=top_k,
+                queries=augmented_queries
             )
-            
+
             logger.info(f"📚 Retrieved {len(documents)} documents")
-            
+
             return documents
-            
+
         except Exception as e:
             logger.error(f"❌ Document retrieval failed: {e}")
             return []
@@ -308,7 +354,7 @@ class RAGChain:
     def get_chain_info(self) -> Dict[str, Any]:
         """
         Get information about the RAG chain configuration.
-        
+
         Returns:
             Dictionary with chain information
         """
@@ -319,7 +365,8 @@ class RAGChain:
                 "similarity_threshold": settings.RAG_SIMILARITY_THRESHOLD,
                 "conversation_history": settings.ENABLE_CONVERSATION_HISTORY,
                 "max_history": settings.MAX_CONVERSATION_HISTORY
-            }
+            },
+            "query_augmentation": self.augmentation_engine.get_stats()
         }
 
 

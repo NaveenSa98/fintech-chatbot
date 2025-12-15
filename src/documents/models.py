@@ -21,6 +21,10 @@ class Document(Base):
     file_size = Column(Integer, nullable=False)
     file_type = Column(String, nullable=False)
 
+    # Document conversion tracking
+    source_file_type = Column(String, nullable=True)  # Original uploaded type (e.g., "pdf", "docx")
+    converted_from = Column(String, nullable=True)  # "pdf" or "docx" if converted, None otherwise
+
     department = Column(String, nullable=False)  # Department associated with the document
 
     is_processed = Column(Boolean, default=False)  # Processing status

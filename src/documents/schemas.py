@@ -32,6 +32,8 @@ class DocumentResponse(BaseModel):
     description: Optional[str]
     uploaded_at: datetime
     processed_at: Optional[datetime]
+    source_file_type: Optional[str]
+    converted_from: Optional[str]
     
     class Config:
         from_attributes = True

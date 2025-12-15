@@ -4,9 +4,18 @@ Loads environment variables and provides centralized config.
 """
 
 from pydantic_settings import BaseSettings
-from pydantic import field_validator
+from pydantic import field_validator, ConfigDict
 from typing import Optional, Union
 import os
+from pathlib import Path
+
+try:
+    from dotenv import load_dotenv
+    env_file = Path(__file__).parent.parent.parent / ".env"
+    if env_file.exists():
+        load_dotenv(env_file, override=True)  
+except ImportError:
+    pass  
 
 class Settings(BaseSettings):
     """Application configuration settings."""
@@ -31,9 +40,12 @@ class Settings(BaseSettings):
 
     #Document processing
     UPLOAD_DIR: str = "data/uploads"
-    PROCESSED_DIR: str = "data/processed"
     MAX_FILE_SIZE: int = 10485760  # 10MB
-    ALLOWED_FILE_TYPES: list[str] = ["pdf", "docx", "csv", "xlsx"]
+    ALLOWED_FILE_TYPES: list[str] = ["pdf", "docx", "csv", "xlsx", "md"]
+
+    # PDF & DOCX to Markdown conversion
+    CONVERT_PDF_TO_MARKDOWN: bool = True
+    CONVERT_DOCX_TO_MARKDOWN: bool = True
 
     #Vector Store
     CHROMA_DB_DIR: str = "data/chroma_db"
@@ -47,18 +59,23 @@ class Settings(BaseSettings):
     LLM_TEMPERATURE: float = 0.3
     LLM_MAX_TOKENS: int = 1024
 
-     # RAG Configuration 
+     # RAG Configuration
     RAG_TOP_K: int = 5
-    RAG_SIMILARITY_THRESHOLD: float = 0.6  
+    RAG_SIMILARITY_THRESHOLD: float = 0.6
     ENABLE_CONVERSATION_HISTORY: bool = True
     MAX_CONVERSATION_HISTORY: int = 10
+
+    # Query Augmentation Configuration
+    ENABLE_QUERY_AUGMENTATION: bool = True
+    NUM_QUERY_AUGMENTATIONS: int = 2
     
 
-    model_config = {
-        "env_file": ".env",
-        "env_file_encoding": "utf-8",
-        "case_sensitive": True
-    }
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+        extra="ignore"  # Ignore extra environment variables not defined in Settings
+    )
 
 settings = Settings()
 
@@ -67,7 +84,6 @@ def create_directories():
     """Create required directories if they don't exist."""
     directories = [
         settings.UPLOAD_DIR,
-        settings.PROCESSED_DIR,
         settings.CHROMA_DB_DIR
     ]
     for directory in directories:

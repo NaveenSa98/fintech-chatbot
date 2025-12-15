@@ -1,80 +1,111 @@
 """
-Document retriever with role-based access control.
-Retrieves relevant documents based on user role and query.
+Document retriever with role-based access control and semantic search.
+Retrieves relevant documents based on user role, query, and semantic similarity.
 """
 from typing import List, Dict, Any
 from src.vectorstore.chroma_store import get_chroma_store
-from src.core.config import ROLE_PERMISSIONS
+from src.core.config import ROLE_PERMISSIONS, settings
 from src.core.logging_config import get_logger
-from langchain.schema import Document
 
 logger = get_logger("vector_store")
 
+
 class DocumentRetriever:
     """
-    Retrieves documents with role-based access control.
+    Retrieves documents with role-based access control and semantic reranking.
     Ensures users can only access documents they are permitted to view.
-
     """
 
     def __init__(self):
-        """Initialize the retriever"""
+        """Initialize the retriever with semantic search capability."""
         self.chroma_store = get_chroma_store()
-        logger.info("DocumentRetriever initialized")
+        self.similarity_threshold = settings.RAG_SIMILARITY_THRESHOLD
+        logger.info("DocumentRetriever initialized with semantic search")
 
     def retrieve_for_user(
-            self,
-            query: str,
-            user_role: str,
-            top_k: int = 5
-    ) -> List[Document]:
+        self,
+        query: str,
+        user_role: str,
+        top_k: int = 5,
+        queries: List[str] = None
+    ) -> List[Dict[str, Any]]:
         """
-        Retrieve documents based on user role and query.
+        Retrieve documents based on user role and semantic similarity.
+        Searches across all accessible departments and reranks by relevance.
+
+        Supports both single query and multiple augmented queries for better retrieval.
 
         Args:
-            query: Search query
-            user_role: Role of the user (e.g., 'admin', 'user')
+            query: Primary search query
+            user_role: Role of the user
             top_k: Number of top documents to retrieve
+            queries: Optional list of additional queries (from query augmentation)
 
         Returns:
-            List of relevant documents
+            List of relevant documents sorted by semantic relevance
         """
-        logger.info(f"Retrieving documents for role '{user_role}' with query: '{query}', top_k={top_k}")
+        # Build list of queries to search
+        search_queries = [query]
+        if queries:
+            search_queries.extend(queries)
 
+        logger.info(
+            f"Semantic search for role '{user_role}': "
+            f"{len(search_queries)} queries, top_k={top_k}"
+        )
+
+        # Get allowed departments for user
         allowed_departments = ROLE_PERMISSIONS.get(user_role, {}).get("departments", [])
 
         if not allowed_departments:
             logger.warning(f"No departments accessible for role: {user_role}")
             return []
 
-        all_results = []
+        all_results = {}  # Use dict to deduplicate by content
 
-        for department in allowed_departments:
-            try:
-                results = self.chroma_store.similarity_search_with_score(
-                    query=query,
-                    department=department,
-                    k=top_k
-                )
+        # Search each query across all accessible departments
+        for search_query in search_queries:
+            for department in allowed_departments:
+                try:
+                    results = self.chroma_store.similarity_search_with_score(
+                        query=search_query,
+                        department=department,
+                        k=top_k
+                    )
 
-                for doc, score in results:
-                    all_results.append({
-                        "content": doc.page_content,
-                        "metadata": doc.metadata,
-                        "score": float(score),
-                        "department": department
-                    })
+                    # Convert ChromaDB distance to similarity score
+                    for doc, distance in results:
+                        # ChromaDB returns distance, convert to similarity (1 - distance for cosine)
+                        similarity_score = max(0.0, 1.0 - distance)
 
-                logger.info(f"Retrieved {len(results)} results from {department} department")
+                        # Use content hash as key to deduplicate
+                        doc_hash = hash(doc.page_content)
 
-            except Exception as e:
-                logger.error(f"Error retrieving from department {department}: {str(e)}")
-                continue
+                        # Keep highest score for duplicate documents
+                        if doc_hash not in all_results or similarity_score > all_results[doc_hash]["score"]:
+                            all_results[doc_hash] = {
+                                "content": doc.page_content,
+                                "metadata": doc.metadata,
+                                "score": round(similarity_score, 4),
+                                "department": department
+                            }
 
-        all_results.sort(key=lambda x: x["score"], reverse=False)
+                except Exception as e:
+                    logger.error(f"Error retrieving from {department}: {str(e)}")
+                    continue
 
-        final_results = all_results[:top_k]
-        logger.info(f"Returning {len(final_results)} total results for role '{user_role}'")
+        # Convert dict to list and sort by score (highest relevance first)
+        results_list = list(all_results.values())
+        results_list.sort(key=lambda x: x["score"], reverse=True)
+
+        # Filter by relevance threshold and return top-k
+        filtered_results = [r for r in results_list if r["score"] >= self.similarity_threshold]
+        final_results = filtered_results[:top_k]
+
+        logger.info(
+            f"Semantic search complete: {len(final_results)} results "
+            f"from {len(search_queries)} queries (threshold={self.similarity_threshold})"
+        )
 
         return final_results
 
@@ -85,7 +116,7 @@ class DocumentRetriever:
         top_k: int = 5
     ) -> List[Dict[str, Any]]:
         """
-        Retrieve documents from a specific department.
+        Retrieve documents from a specific department with semantic search.
 
         Args:
             query: Search query
@@ -93,63 +124,42 @@ class DocumentRetriever:
             top_k: Number of results
 
         Returns:
-            List of retrieved documents
+            List of documents sorted by semantic relevance
         """
-        logger.info(f"Retrieving from department '{department}' with query: '{query}', top_k={top_k}")
+        logger.info(f"Semantic search in {department}: query='{query}', top_k={top_k}")
 
         try:
+            # Perform semantic search
             results = self.chroma_store.similarity_search_with_score(
                 query=query,
                 department=department,
                 k=top_k
             )
 
+            # Convert to results with similarity scores
             formatted_results = []
-            for doc, score in results:
-                formatted_results.append({
+            for doc, distance in results:
+                # Convert ChromaDB distance to similarity score
+                similarity_score = max(0.0, 1.0 - distance)
+
+                result = {
                     "content": doc.page_content,
                     "metadata": doc.metadata,
-                    "score": float(score),
+                    "score": round(similarity_score, 4),
                     "department": department
-                })
+                }
+                formatted_results.append(result)
 
-            logger.info(f"Retrieved {len(formatted_results)} results from {department}")
-            return formatted_results
+            # Filter by relevance threshold
+            filtered_results = [r for r in formatted_results if r["score"] >= self.similarity_threshold]
+
+            logger.info(f"Semantic search in {department}: {len(filtered_results)} relevant results")
+            return filtered_results
 
         except Exception as e:
-            logger.error(f"Error retrieving from department {department}: {str(e)}")
+            logger.error(f"Error retrieving from {department}: {str(e)}")
             raise
 
-    def _collection_to_department(self, collection: str) -> str:
-        """
-        Convert collection name to department name.
-
-        Args:
-            collection: Collection name (lowercase)
-
-        Returns:
-            Department name (capitalized)
-        """
-        mapping = {
-            "finance": "Finance",
-            "marketing": "Marketing",
-            "hr": "HR",
-            "engineering": "Engineering",
-            "general": "General"
-        }
-        return mapping.get(collection, "General")
-
-    def get_accessible_departments(self, user_role: str) -> List[str]:
-        """
-        Get list of departments accessible to a role.
-
-        Args:
-            user_role: User's role
-
-        Returns:
-            List of department names
-        """
-        return ROLE_PERMISSIONS.get(user_role, {}).get("departments", [])
 
 
 # Global retriever instance

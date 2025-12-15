@@ -88,50 +88,6 @@ class ChromaStore:
             raise
 
 
-    def similarity_search(
-        self,
-        query: str,
-        department: str,
-        k: int = 5,
-        filter_metadata: Optional[Dict[str, Any]] = None
-    ) -> List[Document]:
-        """
-        Search for similar documents.
-
-        Args:
-            query: Search query
-            department: Department to search in
-            k: Number of results to return
-            filter_metadata: Optional metadata filters
-
-        Returns:
-            List of similar documents
-        """
-        logger.info(f"Similarity search in {department}: query='{query}', k={k}")
-
-        try:
-            vectorstore = self.get_collection(department)
-
-            # Perform similarity search
-            if filter_metadata:
-                results = vectorstore.similarity_search(
-                    query=query,
-                    k=k,
-                    filter=filter_metadata
-                )
-            else:
-                results = vectorstore.similarity_search(
-                    query=query,
-                    k=k
-                )
-
-            logger.info(f"Found {len(results)} results in {department} collection")
-            return results
-
-        except Exception as e:
-            logger.error(f"Error during similarity search in {department}: {str(e)}")
-            raise
-
     def similarity_search_with_score(
         self,
         query: str,
@@ -139,7 +95,7 @@ class ChromaStore:
         k: int = 5
     ) -> List[tuple[Document, float]]:
         """
-        Search for similar documents with relevance scores.
+        Semantic search with cosine similarity scores for reranking.
 
         Args:
             query: Search query
@@ -147,23 +103,26 @@ class ChromaStore:
             k: Number of results to return
 
         Returns:
-            List of (document, score) tuples
+            List of (document, distance) tuples
+            Note: distance from ChromaDB (0=identical, 2=opposite)
+                  Convert to similarity using: 1 - distance
         """
-        logger.info(f"Similarity search with scores in {department}: query='{query}', k={k}")
+        logger.info(f"Semantic search in {department}: query='{query}', k={k}")
 
         try:
             vectorstore = self.get_collection(department)
 
+            # Perform semantic search using cosine similarity
             results = vectorstore.similarity_search_with_score(
                 query=query,
                 k=k
             )
 
-            logger.info(f"Found {len(results)} scored results in {department} collection")
+            logger.info(f"Found {len(results)} semantic results in {department} collection")
             return results
 
         except Exception as e:
-            logger.error(f"Error during similarity search with scores in {department}: {str(e)}")
+            logger.error(f"Error during semantic search in {department}: {str(e)}")
             raise
 
     def delete_documents(
