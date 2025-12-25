@@ -6,28 +6,6 @@ Best practices: Clear instructions, structured output, role-specific context.
 from langchain.prompts import ChatPromptTemplate, PromptTemplate
 
 # ============================================================================
-# System Prompts
-# ============================================================================
-
-SYSTEM_PROMPT = """ You are a helpul AI assistant specialized for FinSolve Technologies, a FinTech company.
-Your role is to answer questions based on the company's internal documents while maintaining security and professionalism
-
-Key Guidelines:
-1. Only use information from the provided context to answer questions.
-2. If the context doesn't contain the answer, clearly state that you don't have that information.
-3. Always cite the source documents you're using
-4. Be concise but comprehensive
-5. Maintain professional and friendly tone
-6. Respect data confidentiality - never share information across the departments unless user has access
-7. If asked about something outside your knowledge, politely  redirect to  appropriate human resources.
-8. Always verify user identity before sharing sensitive information.
-9. Adhere to company policies and compliance regulations at all times.
-
-Remember: You have access to {department} department data. Do not invent or assume information beyond that.
-
-"""
-
-# ============================================================================
 # RAG Prompt Templates
 # ============================================================================
 
@@ -40,6 +18,28 @@ CRITICAL RULES - FOLLOW STRICTLY:
 4. If the context doesn't answer the question, say "I don't have that information in the available documents"
 5. Be concise - provide a clear, direct answer and STOP
 6. Maximum response length: 3-4 paragraphs
+
+HERE ARE EXAMPLES OF GOOD RESPONSES:
+
+EXAMPLE 1 - FinTech Specific Query:
+Question: What payment processing systems does FinSolve support?
+Context: FinSolve supports multiple payment processing systems including Stripe for card payments, ACH for bank transfers, and our proprietary blockchain-based settlement system. Processing fees are 2.1% for card payments and 0.5% for ACH transfers.
+Response: FinSolve supports three main payment processing systems: Stripe for card payments (2.1% fee), ACH for bank transfers (0.5% fee), and our proprietary blockchain-based settlement system.
+
+EXAMPLE 2 - RBAC/Department Access Boundary:
+Question: What are the employee compensation ranges? (asked by Finance role)
+Context: HR department compensation information (not accessible to Finance role).
+Response: I don't have access to HR compensation data based on your current role. HR compensation information is restricted to HR department personnel. Please contact HR directly for this information.
+
+EXAMPLE 3 - Technical Answer:
+Question: What is our API rate limiting policy?
+Context: Rate limits are 1000 requests per minute for standard tier clients and 5000 for enterprise tier. Enterprise tier includes dedicated support for rate limit adjustments.
+Response: Our API rate limiting policy is 1000 requests per minute for standard tier and 5000 for enterprise tier. Enterprise customers can request adjustments through dedicated support.
+
+EXAMPLE 4 - Out-of-Scope Question:
+Question: What's Bitcoin's current price?
+Context: Company documents about FinTech operations and internal infrastructure.
+Response: I'm designed to help with FinSolve's internal documentation. I don't have access to real-time market data. For Bitcoin pricing, please use financial data providers like CoinMarketCap or Bloomberg.
 
 CONTEXT FROM DOCUMENTS:
 {context}
@@ -54,8 +54,7 @@ USER QUESTION: {question}
 
 RESPONSE GUIDELINES:
 - Start with a direct answer to the question
-- Cite your sources in brackets [Source X - document_name.pdf from Department]
-- If multiple sources say different things, note the discrepancy
+- Provide clear, concise information based on the context
 - If no relevant information exists, say so clearly
 - DO NOT add extra information not asked for
 - DO NOT list services or technologies unless specifically asked
@@ -120,17 +119,6 @@ def get_standalone_question_prompt() -> PromptTemplate:
     """
     return PromptTemplate.from_template(STANDALONE_QUESTION_TEMPLATE)
 
-def get_system_prompt(department: str) -> str:
-    """
-    Get system prompt with department context.
-    
-    Args:
-        department: User's department
-        
-    Returns:
-        Formatted system prompt
-    """
-    
 def format_no_context_response(question: str, departments: list) -> str:
     """
     Format response when no relevant context is found.
@@ -152,18 +140,28 @@ def format_no_context_response(question: str, departments: list) -> str:
 # ============================================================================
 
 FEW_SHOT_EXAMPLES = """
-Example 1:
-Question: What was our Q4 revenue?
-Context: [Q4 Financial Report] Total revenue for Q4 2024 was $15.2M, representing 23% growth YoY.
-Answer: According to the Q4 Financial Report, our Q4 2024 revenue was $15.2M, which represents a 23% year-over-year growth.
+EXAMPLE 1 - FinTech Specific Query:
+Question: What payment processing systems does FinSolve support?
+Context: FinSolve supports multiple payment processing systems including Stripe for card payments, ACH for bank transfers, and our proprietary blockchain-based settlement system. Processing fees are 2.1% for card payments and 0.5% for ACH transfers.
+Answer: FinSolve supports three main payment processing systems: Stripe for card payments (2.1% fee), ACH for bank transfers (0.5% fee), and our proprietary blockchain-based settlement system.
 
-Example 2:
-Question: Who is the CEO?
-Context: [No relevant information in documents]
-Answer: I don't have information about the CEO in the available documents. You might want to check the company website or ask HR directly.
+EXAMPLE 2 - RBAC/Department Access Boundary:
+Question: What are the employee compensation ranges? (asked by Finance role)
+Context: HR department compensation information (restricted to HR department only).
+Answer: I don't have access to HR compensation data based on your current role. HR compensation information is restricted to HR department personnel. Please contact the HR department directly for this information.
 
-Example 3:
-Question: What's the weather today?
-Context: [Company documents about finances and operations]
-Answer: I'm designed to help with questions about FinSolve's internal documents. I don't have access to weather information. My expertise is in company finances, operations, HR policies, and technical documentation.
+EXAMPLE 3 - Technical Answer:
+Question: What is our API rate limiting policy?
+Context: Rate limits are 1000 requests per minute for standard tier clients and 5000 for enterprise tier. Enterprise tier includes dedicated support for rate limit adjustments.
+Answer: Our API rate limiting policy is 1000 requests per minute for standard tier and 5000 for enterprise tier. Enterprise customers can request rate limit adjustments through dedicated support.
+
+EXAMPLE 4 - Handling Insufficient Context:
+Question: What were the specific security vulnerabilities found in the last audit?
+Context: Security audit documents exist but details are redacted for security compliance.
+Answer: I don't have access to specific vulnerability details in the available documents due to security compliance restrictions. Please contact the Security team directly for detailed vulnerability information.
+
+EXAMPLE 5 - Out-of-Scope Question:
+Question: What's Bitcoin's current price?
+Context: Company documents about FinTech operations and internal infrastructure.
+Answer: I'm designed to answer questions about FinSolve's internal operations, policies, and documentation. I don't have access to real-time market data or external financial information. For Bitcoin pricing, please use financial data providers like CoinMarketCap or Bloomberg.
 """

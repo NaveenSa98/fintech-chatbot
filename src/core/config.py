@@ -50,24 +50,23 @@ class Settings(BaseSettings):
     #Vector Store
     CHROMA_DB_DIR: str = "data/chroma_db"
     EMBEDDING_MODEL_NAME: str = "BAAI/bge-base-en-v1.5"
-    CHUNK_SIZE: int = 500
-    CHUNK_OVERLAP: int = 50
+    CHUNK_SIZE: int = 1500
+    CHUNK_OVERLAP: int = 200
 
     #LLM Configuration
     GROQ_API_KEY: Optional[str] = None
     LLM_MODEL: str = "llama-3.1-8b-instant"  
     LLM_TEMPERATURE: float = 0.3
-    LLM_MAX_TOKENS: int = 1024
+    LLM_MAX_TOKENS: int = 2048
 
-     # RAG Configuration
-    RAG_TOP_K: int = 5
-    RAG_SIMILARITY_THRESHOLD: float = 0.6
+    # RAG Configuration
+    RAG_TOP_K: int = 8
     ENABLE_CONVERSATION_HISTORY: bool = True
     MAX_CONVERSATION_HISTORY: int = 10
 
     # Query Augmentation Configuration
     ENABLE_QUERY_AUGMENTATION: bool = True
-    NUM_QUERY_AUGMENTATIONS: int = 2
+    NUM_QUERY_AUGMENTATIONS: int = 5
     
 
     model_config = ConfigDict(

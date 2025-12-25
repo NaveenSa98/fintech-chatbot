@@ -173,9 +173,12 @@ class DocumentService:
                 "upload_date": str(doc_record.uploaded_at)
             }
 
+            # Normalize file path to use forward slashes (cross-platform compatibility)
+            normalized_file_path = converted_file_path.replace("\\", "/")
+
             # Process file (use converted file path if available)
             chunks = processor.process_file(
-                file_path=converted_file_path,
+                file_path=normalized_file_path,
                 file_type=file_extension,
                 metadata=metadata
             )

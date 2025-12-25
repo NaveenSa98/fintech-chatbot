@@ -49,12 +49,6 @@ markitdown==0.0.4
 sentence-transformers==2.3.1
 openai==1.7.2
 
-# Streamlit UI
-streamlit==1.31.0
-streamlit-extras==0.3.6
-extra-streamlit-components==0.1.71
-plotly==5.18.0
-requests==2.31.0
 
 # Utilities
 tiktoken==0.5.2

@@ -210,3 +210,5 @@ __marimo__/
 data/
 data/uploads/
 .claude/
+
+node_modules/

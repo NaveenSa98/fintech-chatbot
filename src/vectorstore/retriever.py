@@ -4,7 +4,7 @@ Retrieves relevant documents based on user role, query, and semantic similarity.
 """
 from typing import List, Dict, Any
 from src.vectorstore.chroma_store import get_chroma_store
-from src.core.config import ROLE_PERMISSIONS, settings
+from src.core.config import ROLE_PERMISSIONS
 from src.core.logging_config import get_logger
 
 logger = get_logger("vector_store")
@@ -19,14 +19,13 @@ class DocumentRetriever:
     def __init__(self):
         """Initialize the retriever with semantic search capability."""
         self.chroma_store = get_chroma_store()
-        self.similarity_threshold = settings.RAG_SIMILARITY_THRESHOLD
-        logger.info("DocumentRetriever initialized with semantic search")
+        logger.info("DocumentRetriever initialized with semantic search (threshold disabled)")
 
     def retrieve_for_user(
         self,
         query: str,
         user_role: str,
-        top_k: int = 5,
+        top_k: int = 8,
         queries: List[str] = None
     ) -> List[Dict[str, Any]]:
         """
@@ -98,13 +97,12 @@ class DocumentRetriever:
         results_list = list(all_results.values())
         results_list.sort(key=lambda x: x["score"], reverse=True)
 
-        # Filter by relevance threshold and return top-k
-        filtered_results = [r for r in results_list if r["score"] >= self.similarity_threshold]
-        final_results = filtered_results[:top_k]
+        # Return top-k results (no threshold filtering - LLM filters irrelevant content)
+        final_results = results_list[:top_k]
 
         logger.info(
             f"Semantic search complete: {len(final_results)} results "
-            f"from {len(search_queries)} queries (threshold={self.similarity_threshold})"
+            f"from {len(search_queries)} queries"
         )
 
         return final_results
@@ -113,7 +111,7 @@ class DocumentRetriever:
         self,
         query: str,
         department: str,
-        top_k: int = 5
+        top_k: int = 8
     ) -> List[Dict[str, Any]]:
         """
         Retrieve documents from a specific department with semantic search.
@@ -150,11 +148,8 @@ class DocumentRetriever:
                 }
                 formatted_results.append(result)
 
-            # Filter by relevance threshold
-            filtered_results = [r for r in formatted_results if r["score"] >= self.similarity_threshold]
-
-            logger.info(f"Semantic search in {department}: {len(filtered_results)} relevant results")
-            return filtered_results
+            logger.info(f"Semantic search in {department}: {len(formatted_results)} results retrieved")
+            return formatted_results
 
         except Exception as e:
             logger.error(f"Error retrieving from {department}: {str(e)}")

@@ -218,31 +218,21 @@ class RAGChain:
     
     def _has_relevant_context(
         self,
-        documents: List[Dict[str, Any]],
-        min_score: float = None
+        documents: List[Dict[str, Any]]
     ) -> bool:
         """
-        Check if retrieved documents are relevant enough.
+        Check if retrieved documents exist for context.
+
+        With top-k retrieval and no threshold filtering, we check if documents
+        were retrieved. The LLM will determine actual relevance during generation.
 
         Args:
             documents: Retrieved documents
-            min_score: Minimum relevance score (default from settings)
 
         Returns:
-            True if documents are relevant
+            True if documents exist
         """
-        if not documents:
-            return False
-
-        min_score = min_score or settings.RAG_SIMILARITY_THRESHOLD
-
-        # Check if best match exceeds threshold
-        # Note: With Cosine similarity, scores range from 0-1 (higher is better)
-        # ChromaDB with cosine returns 1 - cosine_similarity as distance
-        # So we convert: similarity = 1 - distance
-        best_score = 1 - documents[0].get("score", 1.0)  # Convert distance to similarity
-
-        return best_score >= min_score
+        return bool(documents)
     
     def _generate_response(
         self,
@@ -362,7 +352,7 @@ class RAGChain:
             "llm_model": self.llm_manager.get_model_info(),
             "retrieval_config": {
                 "top_k": settings.RAG_TOP_K,
-                "similarity_threshold": settings.RAG_SIMILARITY_THRESHOLD,
+                "similarity_threshold": "disabled (returns all top-k results)",
                 "conversation_history": settings.ENABLE_CONVERSATION_HISTORY,
                 "max_history": settings.MAX_CONVERSATION_HISTORY
             },

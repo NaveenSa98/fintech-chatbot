@@ -7,6 +7,8 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import (
     UnstructuredExcelLoader,
     CSVLoader,
+    PyPDFLoader,
+    UnstructuredWordDocumentLoader,
 )
 from langchain.schema import Document
 from src.documents.loaders import MarkdownLoader
@@ -24,8 +26,12 @@ class DocumentProcessor:
     def __init__(self):
         """Initialize the document processor with recursive text splitting."""
         # Hierarchical separators for recursive chunking
-        # Tries to split by paragraph, then sentence, then word, then character
+        # Markdown files: split by headers first to preserve structure
+        # Then paragraph breaks, sentences, words, characters
+        # This prevents splitting headers from their content
         separators = [
+            "\n## ",     # Markdown H2 header (preserve structure)
+            "\n### ",    # Markdown H3 header (preserve structure)
             "\n\n",      # Paragraph breaks
             "\n",        # Line breaks
             ". ",        # Sentences
@@ -39,7 +45,10 @@ class DocumentProcessor:
             separators=separators,
             length_function=len
         )
-        logger.info("DocumentProcessor initialized with recursive chunking")
+        logger.info(
+            "DocumentProcessor initialized with recursive chunking "
+            "(includes markdown-aware separators for header preservation)"
+        )
 
     def load_document(self, file_path: str, file_type: str) -> List[Document]:
         """
@@ -47,12 +56,16 @@ class DocumentProcessor:
 
         Args:
             file_path: Path to the document
-            file_type: Type of file (md, csv, xlsx)
+            file_type: Type of file (md, csv, xlsx, pdf, docx)
 
         Returns:
             List of LangChain Document objects
         """
         file_type = file_type.lower()
+
+        # Normalize file path to use forward slashes (cross-platform compatibility)
+        # This prevents issues on Windows where os.path.join uses backslashes
+        file_path = file_path.replace("\\", "/")
 
         try:
             # Select appropriate loader based on file type
@@ -62,8 +75,14 @@ class DocumentProcessor:
                 loader = CSVLoader(file_path)
             elif file_type == "xlsx":
                 loader = UnstructuredExcelLoader(file_path, mode="elements")
+            elif file_type == "pdf":
+                logger.info(f"Using PyPDFLoader for PDF file (fallback from markdown conversion)")
+                loader = PyPDFLoader(file_path)
+            elif file_type == "docx":
+                logger.info(f"Using UnstructuredWordDocumentLoader for DOCX file (fallback from markdown conversion)")
+                loader = UnstructuredWordDocumentLoader(file_path)
             else:
-                raise ValueError(f"Unsupported file type: {file_type}. Supported types: md, csv, xlsx")
+                raise ValueError(f"Unsupported file type: {file_type}. Supported types: md, csv, xlsx, pdf, docx")
 
             # Load documents
             documents = loader.load()
