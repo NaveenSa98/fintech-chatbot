@@ -30,7 +30,7 @@ import { useAuth } from "../hooks/useAuth"
 import { authAPI } from "../services/api"
 
 const ROLES = ["Finance", "Marketing", "HR", "Engineering", "Employee", "C-Level"]
-const DEPARTMENTS = ["Finance", "Marketing", "HR", "Engineering", "Administration"]
+const DEPARTMENTS = ["Finance", "Marketing", "HR", "Engineering", "General", "Administration"]
 
 export default function Login() {
   const navigate = useNavigate()
@@ -138,32 +138,43 @@ export default function Login() {
 
       const response = await authAPI.register(regEmail, regPassword, regFullName, regRole, finalDepartment)
 
-      const user = {
-        id: response.user.id,
-        email: response.user.email,
-        fullName: response.user.full_name,
-        role: response.user.role as "Finance" | "Marketing" | "HR" | "Engineering" | "Employee" | "C-Level",
-        department: response.user.department,
-        status: "active" as const,
+      // Check if registration was successful (response contains user id)
+      if (response && response.id) {
+        toast({
+          title: "Success! 🎉",
+          description: "Account created successfully! Please log in with your credentials.",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        })
+
+        // Pre-fill login email and clear form
+        setLoginEmail(regEmail)
+        setLoginPassword("")
+
+        // Reset registration form
+        setRegFullName("")
+        setRegEmail("")
+        setRegPassword("")
+        setRegConfirmPassword("")
+        setRegRole("Employee")
+        setRegDepartment("General")
+
+        // Redirect to login page
+        setTimeout(() => {
+          window.location.href = "/login"
+        }, 1000)
+      } else {
+        throw new Error("Registration response invalid")
       }
-
-      login(user, response.access_token)
-
-      toast({
-        title: "Success",
-        description: "Account created successfully!",
-        status: "success",
-        duration: 2000,
-      })
-
-      navigate("/")
     } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || "Registration failed. Please try again."
+      const errorMessage = error.response?.data?.detail || error.message || "Registration failed. Please try again."
       toast({
-        title: "Error",
+        title: "Registration Failed",
         description: errorMessage,
         status: "error",
-        duration: 3000,
+        duration: 4000,
+        isClosable: true,
       })
     } finally {
       setLoading(false)

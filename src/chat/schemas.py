@@ -117,6 +117,18 @@ class ConversationListResponse(BaseModel):
     conversations: List[ConversationResponse]
 
 
+class ChatStatsResponse(BaseModel):
+    """Schema for chat statistics."""
+    total_messages: int = Field(..., description="Total messages (user + assistant)")
+    user_questions: int = Field(..., description="Total user questions")
+    assistant_responses: int = Field(..., description="Total assistant responses")
+    total_conversations: int = Field(..., description="Total conversations")
+    avg_messages_per_conversation: float = Field(..., description="Average messages per conversation")
+
+    class Config:
+        from_attributes = True
+
+
 # ============================================================================
 # Utility Schemas
 # ============================================================================

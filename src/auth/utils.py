@@ -80,22 +80,15 @@ def get_current_active_user(
 ) -> User:
     """
     Get current active user.
-    Additional dependency to ensure user is active.
-    
+    Note: User is already verified to be active by get_current_user() dependency.
+    This is a convenience wrapper for route protection.
+
     Args:
-        current_user: User from get_current_user dependency
-        
+        current_user: User from get_current_user dependency (already verified active)
+
     Returns:
-        User object if active
-        
-    Raises:
-        HTTPException: If user is not active
+        Authenticated, active User object
     """
-    if not current_user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user"
-        )
     return current_user
 
 

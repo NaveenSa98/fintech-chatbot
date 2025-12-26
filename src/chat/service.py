@@ -4,6 +4,7 @@ Best practices: Separation of concerns, transaction management, clean interfaces
 """
 
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from fastapi import HTTPException, status
 from src.chat.models import Conversation, ChatMessage
 from src.chat.rag_chain import get_rag_chain
@@ -285,6 +286,58 @@ class ChatService:
         
         db.commit()
         db.refresh(conversation)
-        
+
         return conversation
+
+    @staticmethod
+    def get_user_stats(db: Session, user_id: int) -> Dict[str, Any]:
+        """
+        Get chat statistics for a user.
+
+        Args:
+            db: Database session
+            user_id: User ID
+
+        Returns:
+            Dictionary with user statistics
+        """
+        # Get total messages count
+        total_messages = db.query(func.count(ChatMessage.id)).filter(
+            ChatMessage.user_id == user_id
+        ).scalar() or 0
+
+        # Get user questions count
+        user_questions = db.query(func.count(ChatMessage.id)).filter(
+            ChatMessage.user_id == user_id,
+            ChatMessage.role == "user"
+        ).scalar() or 0
+
+        # Get assistant responses count
+        assistant_responses = db.query(func.count(ChatMessage.id)).filter(
+            ChatMessage.user_id == user_id,
+            ChatMessage.role == "assistant"
+        ).scalar() or 0
+
+        # Get total conversations
+        total_conversations = db.query(func.count(Conversation.id)).filter(
+            Conversation.user_id == user_id
+        ).scalar() or 0
+
+        # Calculate average messages per conversation
+        avg_messages = 0.0
+        if total_conversations > 0:
+            avg_messages = round(total_messages / total_conversations, 1)
+
+        logger.info(
+            f"User {user_id} stats: {total_messages} messages, "
+            f"{user_questions} questions, {total_conversations} conversations"
+        )
+
+        return {
+            "total_messages": total_messages,
+            "user_questions": user_questions,
+            "assistant_responses": assistant_responses,
+            "total_conversations": total_conversations,
+            "avg_messages_per_conversation": avg_messages
+        }
 

@@ -4,6 +4,7 @@ Specialized loaders that preserve document structure and metadata.
 """
 
 from langchain_community.document_loaders import TextLoader
+from langchain_community.document_loaders import CSVLoader as LangChainCSVLoader
 from langchain.schema import Document
 from typing import List
 from src.core.logging_config import get_logger
@@ -22,10 +23,12 @@ class MarkdownLoader(TextLoader):
     """
 
     def __init__(self, file_path: str, **kwargs):
-        """Initialize MarkdownLoader with normalized file path."""
+        """Initialize MarkdownLoader with normalized file path and UTF-8 encoding."""
         # Normalize file path to use forward slashes (cross-platform compatibility)
         normalized_path = file_path.replace("\\", "/")
-        super().__init__(normalized_path, **kwargs)
+        # Explicitly use UTF-8 encoding to handle files created with UTF-8 (e.g., from PDF conversion)
+        # This fixes UnicodeDecodeError on Windows where default encoding is cp1252
+        super().__init__(normalized_path, encoding="utf-8", **kwargs)
 
     def load(self) -> List[Document]:
         """
@@ -142,3 +145,18 @@ class MarkdownLoader(TextLoader):
             }]
 
         return sections
+
+
+class CSVLoader(LangChainCSVLoader):
+    """
+    Custom loader for CSV files with UTF-8 encoding support.
+    Extends LangChain's CSVLoader to explicitly handle UTF-8 encoded files.
+
+    This fixes UnicodeDecodeError on Windows where the default encoding is cp1252.
+    """
+
+    def __init__(self, file_path: str, **kwargs):
+        """Initialize CSVLoader with UTF-8 encoding."""
+        # Explicitly use UTF-8 encoding to handle files with UTF-8 characters
+        # This fixes UnicodeDecodeError on Windows where default encoding is cp1252
+        super().__init__(file_path, encoding="utf-8", **kwargs)

@@ -50,8 +50,11 @@ class Settings(BaseSettings):
     #Vector Store
     CHROMA_DB_DIR: str = "data/chroma_db"
     EMBEDDING_MODEL_NAME: str = "BAAI/bge-base-en-v1.5"
-    CHUNK_SIZE: int = 1500
-    CHUNK_OVERLAP: int = 200
+    # Optimized chunk size for better retrieval and performance
+    # Smaller chunks (1000-1200) are more relevant for semantic search
+    # Larger overlap (150-200) ensures context continuity
+    CHUNK_SIZE: int = 1000
+    CHUNK_OVERLAP: int = 150
 
     #LLM Configuration
     GROQ_API_KEY: Optional[str] = None

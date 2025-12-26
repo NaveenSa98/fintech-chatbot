@@ -57,52 +57,17 @@ def validate_message_content(message: str) -> Tuple[bool, str]:
 def sanitize_input(text: str) -> str:
     """
     Sanitize user input by removing potentially harmful content.
-    
+
     Args:
         text: User input text
-        
+
     Returns:
         Sanitized text
     """
     # Remove control characters except newlines and tabs
     sanitized = "".join(char for char in text if ord(char) >= 32 or char in ['\n', '\t'])
-    
+
     # Normalize whitespace
     sanitized = " ".join(sanitized.split())
-    
+
     return sanitized.strip()
-
-
-def is_question(message: str) -> bool:
-    """
-    Determine if message is a question.
-    Helps with prompt engineering.
-    
-    Args:
-        message: User message
-        
-    Returns:
-        True if message appears to be a question
-    """
-    question_indicators = [
-        '?',
-        'what', 'where', 'when', 'why', 'how', 'who',
-        'can you', 'could you', 'would you',
-        'is there', 'are there', 'help me', 'need to know',
-        'tell me', 'show me', 'explain', 'define', 'describe',
-        'list', 'give me', 'provide', 'suggest', 'recommend',
-        'do you know', 'is it possible'
-    ]
-    
-    message_lower = message.lower()
-    
-    # Check for question mark
-    if '?' in message:
-        return True
-    
-    # Check for question words at start
-    for indicator in question_indicators:
-        if message_lower.startswith(indicator):
-            return True
-    
-    return False

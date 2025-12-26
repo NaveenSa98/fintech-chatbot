@@ -26,9 +26,8 @@ email-validator==2.1.0
 # LangChain & RAG
 langchain==0.1.0
 langchain-community==0.0.13
-langchain-openai==0.0.2
 
-# LLM Integration 
+# LLM Integration
 langchain-groq==0.0.1
 groq==0.4.1
 
@@ -47,7 +46,6 @@ markitdown==0.0.4
 
 # Embeddings
 sentence-transformers==2.3.1
-openai==1.7.2
 
 
 # Utilities

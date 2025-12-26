@@ -14,7 +14,8 @@ from src.documents.schemas import (
     DocumentSearch,
     SearchResponse,
     DocumentChunk,
-    MessageResponse
+    MessageResponse,
+    ProcessingStatus
 )
 from src.documents.service import DocumentService
 from src.core.logging_config import get_logger
@@ -26,7 +27,7 @@ router = APIRouter(
     tags=["documents"]
 )
 
-@router.post("/upload", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/upload", response_model=DocumentResponse, status_code=status.HTTP_202_ACCEPTED)
 async def upload_document(
     file: UploadFile = File(...),
     department: str = Form(...),
@@ -35,15 +36,26 @@ async def upload_document(
     db: Session = Depends(get_db)
 ):
     """
-    Upload and process a document.
+    Upload a document for processing.
 
     - **file**: Document file (PDF, DOCX, TXT, XLSX, CSV)
     - **department**: Department this document belongs to (Finance, Marketing, HR, Engineering, General)
     - **description**: Optional document description
 
-    The document will be automatically processed and indexed in the vector database.
+    Returns 202 Accepted immediately. Document processing happens asynchronously in the background.
+    Use the GET /documents/{document_id} endpoint to check processing status.
+
+    Note: Employee role users cannot upload documents.
     """
     logger.info(f"Upload document request: {file.filename} by user {current_user.email} for {department}")
+
+    # Prevent Employee role from uploading documents
+    if current_user.role == "Employee":
+        logger.warning(f"Upload access denied: Employee user {current_user.email} attempted to upload document")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Employee level users cannot upload documents. Please contact your administrator."
+        )
 
     # Validate department access
     from src.core.config import ROLE_PERMISSIONS
@@ -61,9 +73,11 @@ async def upload_document(
         file=file,
         department=department,
         user_id=current_user.id,
+        user_role=current_user.role,
         description=description
     )
 
+    logger.info(f"Document {file.filename} queued for processing (ID: {document.id})")
     return document
 
 @router.get("/", response_model=DocumentListResponse)
@@ -129,6 +143,59 @@ async def get_document(
         )
 
     return document
+
+
+@router.get("/{document_id}/status", response_model=ProcessingStatus)
+async def get_document_status(
+    document_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get processing status of a specific document.
+
+    Returns real-time status to enable client-side polling while document processes.
+
+    - **document_id**: ID of the document
+    - **is_processed**: Whether document processing is complete
+    - **chunk_count**: Number of chunks created (0 if not yet processed)
+    - **message**: Human-readable status message
+    """
+    logger.info(f"Status check request: document ID {document_id} by user {current_user.email}")
+
+    document = DocumentService.get_document_by_id(db, document_id)
+
+    if not document:
+        logger.warning(f"Document not found: ID {document_id}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found"
+        )
+
+    # Check if user has access to this department
+    from src.core.config import ROLE_PERMISSIONS
+    accessible_depts = ROLE_PERMISSIONS.get(current_user.role, {}).get("departments", [])
+
+    if document.department not in accessible_depts and current_user.role != "C-Level":
+        logger.warning(f"Access denied: user {current_user.email} attempted to check status of document {document_id}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have access to this document"
+        )
+
+    # Generate status message
+    if document.is_processed:
+        message = f"✓ Processing complete: {document.chunk_count} chunks created"
+    else:
+        message = f"⏳ Processing in progress... ({document.original_filename})"
+
+    return ProcessingStatus(
+        document_id=document.id,
+        filename=document.original_filename,
+        is_processed=document.is_processed,
+        chunk_count=document.chunk_count,
+        message=message
+    )
 
 
 @router.post("/search", response_model=SearchResponse)

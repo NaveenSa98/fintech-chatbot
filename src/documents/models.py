@@ -26,6 +26,7 @@ class Document(Base):
     converted_from = Column(String, nullable=True)  # "pdf" or "docx" if converted, None otherwise
 
     department = Column(String, nullable=False)  # Department associated with the document
+    uploader_role = Column(String, nullable=False)  # Role of the user who uploaded the document
 
     is_processed = Column(Boolean, default=False)  # Processing status
     chunk_count = Column(Integer, default=0)  # Number of chunks after processing

@@ -2,11 +2,57 @@
 """
 Prompt templates for RAG system.
 Best practices: Clear instructions, structured output, role-specific context.
+Includes both Chain-of-Thought and legacy few-shot prompts.
 """
 from langchain.prompts import ChatPromptTemplate, PromptTemplate
 
 # ============================================================================
-# RAG Prompt Templates
+# System Prompt
+# ============================================================================
+
+SYSTEM_PROMPT = """You are a financial AI assistant for FinSolve Technologies, a fintech company.
+
+Your core capabilities:
+- Answer questions using ONLY information from provided company documents
+- Respect role-based access control (RBAC) boundaries
+- Provide accurate, concise financial information
+- Cite sources transparently
+
+Your limitations:
+- Cannot access information outside your document context
+- Cannot provide real-time market data or external information
+- Must respect department access restrictions based on user role"""
+
+# ============================================================================
+# Chain-of-Thought RAG Prompt Template 
+# ============================================================================
+
+RAG_TEMPLATE_COT = """CONTEXT FROM DOCUMENTS:
+{context}
+
+USER ROLE: {user_role}
+ACCESSIBLE DEPARTMENTS: {departments}
+
+CONVERSATION HISTORY:
+{chat_history}
+
+USER QUESTION: {question}
+
+INSTRUCTIONS:
+Think through the following steps internally to ensure accuracy, but only output the final answer:
+
+1. ANALYZE: What specific information is being requested? Are there RBAC considerations?
+2. EXAMINE: Which sources are relevant? Does the context contain the needed information?
+3. REASON: Extract facts from context. Synthesize if comparing/analyzing. Note limitations.
+4. FORMULATE: Create a clear, direct answer citing sources. Keep it concise (2-4 sentences).
+
+IMPORTANT: Output ONLY the final answer - do NOT show the reasoning steps above.
+If information is unavailable, briefly explain why.
+
+Your Answer:"""
+
+# ============================================================================
+# Legacy RAG Prompt Template (Fallback)
 # ============================================================================
 
 RAG_TEMPLATE = """You are an AI assistant for FinSolve Technologies. You help employees find information from company documents.
@@ -100,14 +146,18 @@ Would you like to:
 # Langchain prompt objects
 # ============================================================================
 
-def get_rag_prompt() -> ChatPromptTemplate:
+def get_rag_prompt(use_cot: bool = True) -> ChatPromptTemplate:
     """
     Get the main RAG prompt template.
-    
+
+    Args:
+        use_cot: Use Chain-of-Thought prompting (True) or legacy few-shot (False)
+
     Returns:
         ChatPromptTemplate for RAG
     """
-    return ChatPromptTemplate.from_template(RAG_TEMPLATE)
+    template = RAG_TEMPLATE_COT if use_cot else RAG_TEMPLATE
+    return ChatPromptTemplate.from_template(template)
 
 
 def get_standalone_question_prompt() -> PromptTemplate:

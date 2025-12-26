@@ -24,7 +24,7 @@ def format_sources(sources: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             "content": source.get("content", "")[:500],  # Limit to 500 chars
             "document_name": source.get("metadata", {}).get("filename", "Unknown"),
             "department": source.get("metadata", {}).get("department", "Unknown"),
-            "relevance_score": round(1 - source.get("score", 1.0), 3),  # Convert distance to similarity
+            "relevance_score": round(source.get("score", 0.0), 3),  # Score is already similarity (0-1), no conversion needed
             "page_number": source.get("metadata", {}).get("page", None)
         }
         formatted_sources.append(formatted_source)

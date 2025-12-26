@@ -26,6 +26,7 @@ class DocumentResponse(BaseModel):
     file_size: int
     file_type: str
     department: str
+    uploader_role: str
     is_processed: bool
     chunk_count: int
     uploaded_by: int
@@ -34,7 +35,7 @@ class DocumentResponse(BaseModel):
     processed_at: Optional[datetime]
     source_file_type: Optional[str]
     converted_from: Optional[str]
-    
+
     class Config:
         from_attributes = True
 

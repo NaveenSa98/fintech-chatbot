@@ -5,6 +5,7 @@ Best practices: Clear documentation, proper status codes, comprehensive examples
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List
 from src.database.connection import get_db
 from src.auth.utils import get_current_active_user
@@ -17,6 +18,7 @@ from src.chat.schemas import (
     ConversationWithMessages,
     ConversationListResponse,
     ChatHealthCheck,
+    ChatStatsResponse,
     MessageResponse
 )
 from src.chat.service import ChatService
@@ -137,14 +139,30 @@ async def list_conversations(
         limit=limit
     )
 
-    # Format response with message counts
+    # Get message counts efficiently (single query instead of N+1 queries)
+    from src.chat.models import ChatMessage
+
+    conv_ids = [conv.id for conv in conversations]
+    message_counts = {}
+
+    if conv_ids:
+        counts = db.query(
+            ChatMessage.conversation_id,
+            func.count(ChatMessage.id).label('count')
+        ).filter(ChatMessage.conversation_id.in_(conv_ids)).group_by(
+            ChatMessage.conversation_id
+        ).all()
+
+        message_counts = {conv_id: count for conv_id, count in counts}
+
+    # Format response with pre-computed message counts
     conv_responses = []
     for conv in conversations:
         conv_responses.append(ConversationResponse(
             id=conv.id,
             title=conv.title,
             user_id=conv.user_id,
-            message_count=len(conv.messages),
+            message_count=message_counts.get(conv.id, 0),
             created_at=conv.created_at,
             updated_at=conv.updated_at
         ))
@@ -233,11 +251,18 @@ async def update_conversation_title(
 
     logger.info(f"Updated conversation {conversation_id} title to: '{title}'")
 
+    # Get message count efficiently
+    from src.chat.models import ChatMessage
+
+    message_count = db.query(func.count(ChatMessage.id)).filter(
+        ChatMessage.conversation_id == conversation.id
+    ).scalar() or 0
+
     return ConversationResponse(
         id=conversation.id,
         title=conversation.title,
         user_id=conversation.user_id,
-        message_count=len(conversation.messages),
+        message_count=message_count,
         created_at=conversation.created_at,
         updated_at=conversation.updated_at
     )
@@ -284,3 +309,27 @@ async def chat_health_check(current_user: User = Depends(get_current_active_user
         "vector_store_available": vector_available,
         "llm_model": llm_info.get("llm_model", "Unknown")
     }
+
+
+@router.get("/stats", response_model=ChatStatsResponse)
+async def get_chat_stats(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get chat statistics for the current user.
+
+    Returns aggregated stats about user's chat activity:
+    - Total messages (user questions + assistant responses)
+    - User question count
+    - Assistant response count
+    - Total conversations
+    - Average messages per conversation
+    """
+    logger.info(f"Chat stats request from user {current_user.email}")
+
+    stats = ChatService.get_user_stats(db, current_user.id)
+
+    logger.info(f"Returning stats for user {current_user.email}: {stats}")
+
+    return stats

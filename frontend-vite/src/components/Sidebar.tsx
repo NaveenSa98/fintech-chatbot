@@ -23,6 +23,7 @@ export default function Sidebar({
   const [localConversations, setLocalConversations] = useState<Conversation[]>([])
   const [localSelectedConv, setLocalSelectedConv] = useState<string | null>(null)
   const [localLoading, setLocalLoading] = useState(false)
+  const [localStats, setLocalStats] = useState(stats)
 
   const cardBg = useColorModeValue("white", "gray.800")
   const borderColor = useColorModeValue("gray.200", "gray.700")
@@ -35,10 +36,11 @@ export default function Sidebar({
   const isActive = (path: string) => location.pathname === path
   const isChat = location.pathname === "/chat"
 
-  // Load conversations when on chat page
+  // Load conversations and stats when on chat page
   useEffect(() => {
     if (isChat) {
       loadConversations()
+      loadStats()
     }
   }, [isChat])
 
@@ -59,6 +61,19 @@ export default function Sidebar({
       console.error("Failed to load conversations:", error)
     } finally {
       setLocalLoading(false)
+    }
+  }
+
+  const loadStats = async () => {
+    try {
+      const statsData = await chatAPI.getChatStats()
+      setLocalStats({
+        totalMessages: statsData.total_messages,
+        userQuestions: statsData.user_questions,
+      })
+    } catch (error) {
+      console.error("Failed to load stats:", error)
+      // Keep default stats on error
     }
   }
 
@@ -235,7 +250,7 @@ export default function Sidebar({
                   Messages
                 </StatLabel>
                 <StatNumber fontSize="lg" color="blue.600">
-                  {stats.totalMessages}
+                  {localStats.totalMessages}
                 </StatNumber>
               </Stat>
               <Stat size="sm">
@@ -243,7 +258,7 @@ export default function Sidebar({
                   Questions
                 </StatLabel>
                 <StatNumber fontSize="lg" color="green.600">
-                  {stats.userQuestions}
+                  {localStats.userQuestions}
                 </StatNumber>
               </Stat>
             </VStack>

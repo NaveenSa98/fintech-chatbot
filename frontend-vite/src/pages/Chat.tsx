@@ -118,11 +118,44 @@ export default function Chat() {
                           📚 Sources:
                         </Text>
                         <VStack align="start" spacing={1}>
-                          {msg.sources.map((source: any, idx: number) => (
-                            <Text key={idx} fontSize="xs" opacity={0.9}>
-                              • {source.document_name || source.filename || source}
-                            </Text>
-                          ))}
+                          {(() => {
+                            // Group sources by document name
+                            const groupedSources = msg.sources.reduce((acc: any, source: any) => {
+                              const docName = source.document_name || source.filename || "Unknown"
+                              if (!acc[docName]) {
+                                acc[docName] = {
+                                  name: docName,
+                                  count: 0,
+                                  maxScore: 0,
+                                  department: source.department || "Unknown",
+                                }
+                              }
+                              acc[docName].count += 1
+                              acc[docName].maxScore = Math.max(acc[docName].maxScore, source.relevance_score || 0)
+                              return acc
+                            }, {})
+
+                            // Convert to array and sort by relevance
+                            const uniqueSources = Object.values(groupedSources).sort(
+                              (a: any, b: any) => b.maxScore - a.maxScore
+                            )
+
+                            return uniqueSources.map((source: any, idx: number) => (
+                              <HStack key={idx} spacing={2} fontSize="xs" opacity={0.9} w="full">
+                                <Text>
+                                  • {source.name}
+                                </Text>
+                                {source.count > 1 && (
+                                  <Text color="blue.300" fontWeight="bold">
+                                    ({source.count} chunks)
+                                  </Text>
+                                )}
+                                <Text color="gray.400" ml="auto">
+                                  {Math.round(source.maxScore * 100)}% relevant
+                                </Text>
+                              </HStack>
+                            ))
+                          })()}
                         </VStack>
                       </Box>
                     )}

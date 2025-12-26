@@ -6,12 +6,11 @@ Extracts text from various file formats and chunks them for vector storage.
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import (
     UnstructuredExcelLoader,
-    CSVLoader,
     PyPDFLoader,
     UnstructuredWordDocumentLoader,
 )
 from langchain.schema import Document
-from src.documents.loaders import MarkdownLoader
+from src.documents.loaders import MarkdownLoader, CSVLoader
 from typing import List, Dict, Any
 from src.core.config import settings
 from src.core.logging_config import get_logger
@@ -100,7 +99,9 @@ class DocumentProcessor:
         metadata: Dict[str, Any] = None
     ) -> List[Document]:
         """
-        Split documents into chunks using recursive text splitting.
+        Split documents into chunks using recursive text splitting with safeguards.
+
+        Includes validation to ensure chunks are valid and properly formatted.
 
         Args:
             documents: List of Document objects to chunk
@@ -109,16 +110,38 @@ class DocumentProcessor:
         Returns:
             List of chunked Document objects
         """
-        # Split documents into chunks
-        chunks = self.text_splitter.split_documents(documents)
+        try:
+            # Split documents into chunks
+            chunks = self.text_splitter.split_documents(documents)
 
-        # Attach metadata to chunks if provided
-        if metadata:
-            for chunk in chunks:
-                chunk.metadata.update(metadata)
+            if not chunks:
+                logger.warning("Document chunking produced no chunks - document may be too small or empty")
+                return []
 
-        logger.info(f"Created {len(chunks)} chunks from {len(documents)} document(s)")
-        return chunks
+            # Attach metadata to chunks if provided
+            if metadata:
+                for chunk in chunks:
+                    chunk.metadata.update(metadata)
+
+            # Validate chunks (remove empty or whitespace-only chunks)
+            valid_chunks = []
+            for i, chunk in enumerate(chunks):
+                # Check if chunk has content
+                if chunk.page_content and chunk.page_content.strip():
+                    valid_chunks.append(chunk)
+                else:
+                    logger.debug(f"Skipping empty chunk {i+1}/{len(chunks)}")
+
+            if not valid_chunks:
+                logger.warning("All chunks were empty after validation")
+                return []
+
+            logger.info(f"Created {len(valid_chunks)} valid chunks from {len(documents)} document(s)")
+            return valid_chunks
+
+        except Exception as e:
+            logger.error(f"Error chunking documents: {str(e)}", exc_info=True)
+            raise
     
     def process_file(
         self,
@@ -129,25 +152,48 @@ class DocumentProcessor:
         """
         Complete document processing pipeline: load → chunk → attach metadata.
 
+        Includes comprehensive error handling and detailed logging for debugging.
+
         Args:
             file_path: Path to the document
-            file_type: Type of file (md, csv, xlsx)
+            file_type: Type of file (md, csv, xlsx, pdf, docx)
             metadata: Metadata to attach to chunks
 
         Returns:
             List of processed document chunks
+
+        Raises:
+            Exception: If loading or chunking fails
         """
-        logger.info(f"Processing file: {file_path}")
+        logger.info(f"Processing file: {file_path} (type: {file_type})")
 
-        # Load document from disk
-        documents = self.load_document(file_path, file_type)
+        try:
+            # Load document from disk
+            logger.info(f"Loading document from {file_path}")
+            documents = self.load_document(file_path, file_type)
 
-        # Chunk documents using recursive text splitting
-        chunks = self.chunk_documents(documents, metadata)
+            if not documents:
+                raise ValueError(f"No documents loaded from {file_path}")
 
-        logger.info(f"Processing complete: {len(chunks)} chunks ready for {file_path}")
+            logger.info(f"Loaded {len(documents)} document(s) from {file_path}")
 
-        return chunks
+            # Chunk documents using recursive text splitting
+            logger.info(f"Chunking {len(documents)} document(s)...")
+            chunks = self.chunk_documents(documents, metadata)
+
+            if not chunks:
+                raise ValueError(f"No chunks created from {file_path}. Document may be empty or incompatible.")
+
+            logger.info(f"Processing complete: {len(chunks)} chunks ready for {file_path}")
+
+            return chunks
+
+        except ValueError as ve:
+            logger.error(f"Validation error processing {file_path}: {str(ve)}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error processing {file_path}: {str(e)}", exc_info=True)
+            raise
     
     def validate_file(self, filename: str, file_size: int) -> tuple[bool, str]:
         """

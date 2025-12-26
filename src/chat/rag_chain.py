@@ -15,7 +15,8 @@ from src.chat.llm_manager import get_llm_manager
 from src.chat.prompt_templates import (
     get_rag_prompt,
     get_standalone_question_prompt,
-    format_no_context_response
+    format_no_context_response,
+    SYSTEM_PROMPT
 )
 from src.chat.query_augmentation import get_query_augmentation_engine
 from src.vectorstore.retriever import get_retriever
@@ -279,8 +280,11 @@ class RAGChain:
                     question=question
                 )
             
-            # Generate response
-            response = self.llm_manager.generate_response(prompt)
+            # Generate response with system prompt
+            response = self.llm_manager.generate_response(
+                prompt=prompt,
+                system_prompt=SYSTEM_PROMPT
+            )
             
             # Clean response
             cleaned = clean_response(response)

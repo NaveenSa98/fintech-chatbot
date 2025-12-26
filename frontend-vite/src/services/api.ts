@@ -1,18 +1,19 @@
 import axios, { AxiosInstance, AxiosError } from "axios"
+import { StorageManager } from "./storage"
 
 // Use relative URLs - Vite proxy handles the rewriting
 const apiClient: AxiosInstance = axios.create({
   baseURL: "/api",
-  timeout: 30000,
+  timeout: 60000,  // Increased to 60 seconds for general requests
   headers: {
     "Content-Type": "application/json",
   },
 })
 
+
 // Add token to requests
 apiClient.interceptors.request.use((config) => {
-  // Check localStorage first (Remember me), then sessionStorage
-  const token = localStorage.getItem("token") || sessionStorage.getItem("token")
+  const token = StorageManager.getToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -24,11 +25,7 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      // Clear both storage types
-      localStorage.removeItem("token")
-      localStorage.removeItem("user")
-      sessionStorage.removeItem("token")
-      sessionStorage.removeItem("user")
+      StorageManager.clearAuth()
       window.location.href = "/login"
     }
     return Promise.reject(error)
@@ -86,6 +83,11 @@ export const chatAPI = {
     const response = await apiClient.delete(`/chat/conversations/${conversationId}`)
     return response.data
   },
+
+  getChatStats: async () => {
+    const response = await apiClient.get("/chat/stats")
+    return response.data
+  },
 }
 
 // ===== Document APIs =====
@@ -107,7 +109,13 @@ export const documentAPI = {
       headers: {
         "Content-Type": "multipart/form-data",
       },
+      timeout: 120000, // 2 minute timeout for large file uploads
     })
+    return response.data
+  },
+
+  getDocumentStatus: async (documentId: number) => {
+    const response = await apiClient.get(`/documents/${documentId}/status`)
     return response.data
   },
 
