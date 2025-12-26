@@ -373,8 +373,7 @@ GROQ_API_KEY=your-groq-api-key
 GROQ_MODEL=llama-3.1-8b-instant
 
 # RAG Configuration
-RAG_TOP_K=5
-RAG_SIMILARITY_THRESHOLD=0.7
+RAG_TOP_K=8
 RAG_CHUNK_SIZE=1000
 RAG_CHUNK_OVERLAP=150
 
@@ -474,223 +473,6 @@ Available commands:
 - `/history` - View conversation history
 - `/exit` - Exit the CLI
 
-## 📡 API Documentation
-
-### Authentication Endpoints
-
-#### Register User
-```http
-POST /api/v1/auth/register
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "password": "securepassword123",
-  "full_name": "John Doe",
-  "role": "Employee",
-  "department": "General"
-}
-
-Response: 201 Created
-{
-  "id": "uuid",
-  "email": "user@example.com",
-  "full_name": "John Doe",
-  "role": "Employee",
-  "department": "General",
-  "is_active": true,
-  "created_at": "2024-01-15T10:30:00Z"
-}
-```
-
-#### Login
-```http
-POST /api/v1/auth/login
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "password": "securepassword123"
-}
-
-Response: 200 OK
-{
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "token_type": "bearer",
-  "user": {
-    "id": "uuid",
-    "email": "user@example.com",
-    "role": "Employee",
-    "department": "General"
-  }
-}
-```
-
-#### Get Available Roles
-```http
-GET /api/v1/auth/roles
-Authorization: Bearer <access_token>
-
-Response: 200 OK
-{
-  "roles": ["Finance", "Marketing", "HR", "Engineering", "Employee", "C-Level"]
-}
-```
-
-### Document Endpoints
-
-#### Upload Document
-```http
-POST /api/v1/documents/upload
-Authorization: Bearer <access_token>
-Content-Type: multipart/form-data
-
-Parameters:
-- file: <binary_file>
-- description: "Optional document description"
-
-Response: 201 Created
-{
-  "id": "uuid",
-  "filename": "document.pdf",
-  "file_size": 2048576,
-  "file_type": "pdf",
-  "department": "Finance",
-  "is_processed": false,
-  "uploaded_at": "2024-01-15T10:30:00Z"
-}
-```
-
-#### List User's Documents
-```http
-GET /api/v1/documents/list
-Authorization: Bearer <access_token>
-
-Response: 200 OK
-{
-  "documents": [
-    {
-      "id": "uuid",
-      "filename": "document.pdf",
-      "file_size": 2048576,
-      "file_type": "pdf",
-      "department": "Finance",
-      "is_processed": true,
-      "chunk_count": 45,
-      "uploaded_at": "2024-01-15T10:30:00Z"
-    }
-  ]
-}
-```
-
-#### Get Document Details
-```http
-GET /api/v1/documents/{document_id}
-Authorization: Bearer <access_token>
-
-Response: 200 OK
-{
-  "id": "uuid",
-  "filename": "document.pdf",
-  "file_size": 2048576,
-  "file_type": "pdf",
-  "department": "Finance",
-  "is_processed": true,
-  "chunk_count": 45,
-  "description": "Financial report Q4 2024",
-  "uploaded_by": "John Doe",
-  "uploaded_at": "2024-01-15T10:30:00Z"
-}
-```
-
-#### Delete Document
-```http
-DELETE /api/v1/documents/{document_id}
-Authorization: Bearer <access_token>
-
-Response: 204 No Content
-```
-
-### Chat Endpoints
-
-#### Send Message (with RAG)
-```http
-POST /api/v1/chat/
-Authorization: Bearer <access_token>
-Content-Type: application/json
-
-{
-  "message": "What are the financial highlights for Q4?",
-  "conversation_id": "uuid" (optional, creates new if not provided)
-}
-
-Response: 200 OK
-{
-  "id": "uuid",
-  "conversation_id": "uuid",
-  "user_message": "What are the financial highlights for Q4?",
-  "assistant_response": "Based on the documents, the Q4 financial highlights include...",
-  "sources": [
-    {
-      "document_id": "uuid",
-      "filename": "Q4_Report.pdf",
-      "relevance_score": 0.92,
-      "excerpt": "..."
-    }
-  ],
-  "confidence_score": 0.87,
-  "tokens_used": 245,
-  "created_at": "2024-01-15T10:35:00Z"
-}
-```
-
-#### List Conversations
-```http
-GET /api/v1/chat/conversations
-Authorization: Bearer <access_token>
-
-Response: 200 OK
-{
-  "conversations": [
-    {
-      "id": "uuid",
-      "title": "Financial Q4 2024",
-      "message_count": 5,
-      "created_at": "2024-01-15T10:30:00Z",
-      "updated_at": "2024-01-15T10:45:00Z"
-    }
-  ]
-}
-```
-
-#### Get Conversation Details
-```http
-GET /api/v1/chat/conversations/{conversation_id}
-Authorization: Bearer <access_token>
-
-Response: 200 OK
-{
-  "id": "uuid",
-  "title": "Financial Q4 2024",
-  "messages": [
-    {
-      "id": "uuid",
-      "role": "user",
-      "message": "What are Q4 highlights?",
-      "created_at": "2024-01-15T10:30:00Z"
-    },
-    {
-      "id": "uuid",
-      "role": "assistant",
-      "message": "Based on the documents...",
-      "sources": [...],
-      "confidence_score": 0.87,
-      "created_at": "2024-01-15T10:35:00Z"
-    }
-  ]
-}
-```
-
 ### Health Check
 ```http
 GET /api/v1/health
@@ -701,72 +483,6 @@ Response: 200 OK
   "timestamp": "2024-01-15T10:30:00Z"
 }
 ```
-
-## 🗄️ Database Schema
-
-### Users Table
-```sql
-CREATE TABLE users (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email VARCHAR(255) UNIQUE NOT NULL,
-  hashed_password VARCHAR(255) NOT NULL,
-  full_name VARCHAR(255) NOT NULL,
-  role VARCHAR(50) NOT NULL,
-  department VARCHAR(100),
-  is_active BOOLEAN DEFAULT true,
-  is_verified BOOLEAN DEFAULT false,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT valid_role CHECK (role IN ('Finance', 'Marketing', 'HR', 'Engineering', 'Employee', 'C-Level'))
-);
-```
-
-### Documents Table
-```sql
-CREATE TABLE documents (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  filename VARCHAR(255) NOT NULL,
-  file_size INTEGER NOT NULL,
-  file_type VARCHAR(20) NOT NULL,
-  source_file_type VARCHAR(20),
-  converted_from BOOLEAN DEFAULT false,
-  department VARCHAR(100) NOT NULL,
-  uploader_role VARCHAR(50) NOT NULL,
-  is_processed BOOLEAN DEFAULT false,
-  chunk_count INTEGER DEFAULT 0,
-  uploaded_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  description TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### Conversations Table
-```sql
-CREATE TABLE conversations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  title VARCHAR(255),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### Chat Messages Table
-```sql
-CREATE TABLE chat_messages (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  role VARCHAR(20) NOT NULL,
-  message TEXT NOT NULL,
-  sources_used TEXT,
-  confidence_score DECIMAL(3,2),
-  tokens_used INTEGER,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
 ## 🧠 RAG Pipeline Details
 
 ### Query Processing Steps
@@ -787,65 +503,10 @@ CREATE TABLE chat_messages (
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `RAG_TOP_K` | 5 | Number of documents to retrieve |
-| `RAG_SIMILARITY_THRESHOLD` | 0.7 | Minimum similarity score (0-1) |
+| `RAG_TOP_K` | 8 | Number of documents to retrieve |
 | `RAG_CHUNK_SIZE` | 1000 | Tokens per chunk |
 | `RAG_CHUNK_OVERLAP` | 150 | Overlap between chunks (tokens) |
 | `MAX_CONVERSATION_HISTORY` | 10 | Messages to consider for context |
-
-## 💡 Usage Examples
-
-### Example 1: Upload a Document and Query It
-
-```bash
-# 1. Login
-curl -X POST http://localhost:8000/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "password123"
-  }'
-
-# Save the access_token from response
-
-# 2. Upload Document
-curl -X POST http://localhost:8000/api/v1/documents/upload \
-  -H "Authorization: Bearer <access_token>" \
-  -F "file=@/path/to/document.pdf" \
-  -F "description=Q4 Financial Report"
-
-# Save the document_id from response
-
-# 3. Query the Document
-curl -X POST http://localhost:8000/api/v1/chat/ \
-  -H "Authorization: Bearer <access_token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "What are the main financial highlights?"
-  }'
-```
-
-### Example 2: Using the Interactive CLI
-
-```bash
-# Start the interactive CLI
-python test_interactive_cli.py
-
-# Switch to Finance role
-/role Finance
-
-# Query the system
-/ask What were the Q4 financial results?
-
-# Retrieve documents only
-/retrieve financial performance
-
-# View conversation history
-/history
-
-# Exit
-/exit
-```
 
 ### Example 3: Department-Based Access
 
@@ -908,49 +569,6 @@ executor = ThreadPoolExecutor(max_workers=5)
 future = executor.submit(process_document, file_path)
 ```
 
-### Testing
-
-```bash
-# Run all tests
-pytest tests/ -v
-
-# Run specific test
-pytest tests/test_chat.py::test_rag_pipeline -v
-
-# Run with coverage
-pytest tests/ --cov=src --cov-report=html
-
-# Run integration tests
-pytest tests/ -m integration
-```
-
-### Code Quality
-
-```bash
-# Format code
-black src/ frontend-vite/src
-
-# Lint
-flake8 src/
-eslint frontend-vite/src/
-
-# Type checking
-mypy src/
-```
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these guidelines:
-
-1. **Fork the repository**
-2. **Create a feature branch** (`git checkout -b feature/amazing-feature`)
-3. **Make your changes** following code style guidelines
-4. **Add tests** for new functionality
-5. **Update documentation** as needed
-6. **Commit with clear messages** (`git commit -m 'Add amazing feature'`)
-7. **Push to the branch** (`git push origin feature/amazing-feature`)
-8. **Open a Pull Request** with a clear description
-
 ### Development Workflow
 
 1. Create a branch from `main`
@@ -964,12 +582,6 @@ Contributions are welcome! Please follow these guidelines:
 
 This project is licensed under the MIT License - see LICENSE file for details.
 
-## 📞 Support & Contact
-
-For issues, questions, or suggestions:
-- Open an issue on GitHub
-- Contact the development team
-- Check existing documentation
 
 ## 🙏 Acknowledgments
 
@@ -979,7 +591,4 @@ For issues, questions, or suggestions:
 - Frontend with [React](https://react.dev/) and [Chakra UI](https://chakra-ui.com/)
 - RAG implementation using [LangChain](https://langchain.com/)
 
----
 
-**Last Updated**: January 2024
-**Version**: 1.0.0
